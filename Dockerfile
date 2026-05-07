@@ -8,9 +8,13 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
 
 WORKDIR /app
 
-# System deps for OpenCV + scikit-image
+# Minimal system deps:
+#   git           — required to pip-install SAM2 from GitHub
+#   libglib2.0-0  — required by opencv-python-headless and scikit-image at import time
+# We use opencv-python-HEADLESS, so libgl1/libsm6/libxext6/libxrender1 are NOT
+# needed — pulling them in would also drag in libllvm19 (~26 MB) + mesa-libgallium.
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git libglib2.0-0 libsm6 libxext6 libxrender1 libgl1 \
+        git libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Python deps first (cache layer)
