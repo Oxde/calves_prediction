@@ -22,8 +22,8 @@ COPY . .
 
 # Pre-warm SAM2 weights into the image so first user request is fast
 RUN python -c "from sam2.sam2_image_predictor import SAM2ImagePredictor; \
-               SAM2ImagePredictor.from_pretrained('facebook/sam2.1-hiera-small', device='cpu'); \
+               SAM2ImagePredictor.from_pretrained('facebook/sam2.1-hiera-tiny', device='cpu'); \
                print('SAM2 weights cached.')"
 
 EXPOSE 8080
-CMD gunicorn app_v3:app --bind 0.0.0.0:${PORT:-8080} --workers 1 --threads 4 --timeout 180
+CMD gunicorn app_v3:app --bind 0.0.0.0:${PORT:-8080} --workers 1 --threads 1 --timeout 180 --preload

@@ -52,6 +52,29 @@ Railway auto-detects Python via `requirements.txt` and runs `Procfile`. **Cold-s
 
 Railway picks up the Dockerfile automatically. Same memory note (2 GB+).
 
+### Cheapest possible Railway config
+
+The defaults in this repo are already optimised for low cost. What's set:
+
+| Setting | Value | Why |
+|---|---|---|
+| Torch | **CPU-only** (`torch==2.4.1+cpu`) | Drops 700 MB of CUDA libs we'd never use. Faster builds, smaller image, less RAM. |
+| SAM2 model | `sam2.1-hiera-tiny` | ~80 MB on disk, ~250 MB resident. Small loses ~150 MB resident for negligible quality gain on this task. |
+| Gunicorn | `--workers 1 --threads 1 --preload` | Each worker keeps a full copy of YOLO + SAM2 + sklearn in memory. One worker = ~1 model footprint. `--preload` shares model memory across forks (no benefit at workers=1, but cheap insurance). |
+| Replicas | `numReplicas: 1` (`railway.json`) | Never spawn a second instance. |
+| Sleep | `sleepApplication: true` (`railway.json`) | Container hibernates after a period of no traffic, then wakes on request. **Single biggest cost cut on Railway.** First request after sleep is slow (~30 s) but subsequent are fast. |
+| Healthcheck | `/ready` with 300 s timeout | Lets Railway know the model is still warming up — avoids being killed during startup. |
+
+**Hard cost caps to set in the Railway dashboard:**
+
+1. Project → **Settings** → **Memory** = **1.5 GB** (we fit in ~1.2 GB; 1.5 GB gives a buffer)
+2. Project → **Settings** → **vCPU** = **0.5** (predictions take ~2-3 s on 0.5 vCPU; fine for demo)
+3. Workspace → **Billing** → **Usage Limit** = your max monthly budget (e.g. $10). Hard-stops the service if exceeded.
+
+**Expected cost** with sleep + light demo traffic (a few predictions per day): **~$2-5/mo** — most of which is the $5 Hobby base. Always-on at 1.5 GB / 0.5 vCPU without sleep would be ~$15/mo.
+
+**If sleep wakeups bother you**, disable `sleepApplication` and accept the always-on cost.
+
 ### Environment variables
 
 None required. Optional:

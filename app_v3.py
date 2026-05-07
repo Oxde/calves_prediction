@@ -87,9 +87,10 @@ def load_models():
         yolo_path = yolo_v3 if yolo_v3.exists() else yolo_v2
         yolo = YOLO(str(yolo_path))
 
-        set_progress('loading SAM2 (first run downloads ~150 MB)')
+        set_progress('loading SAM2 (first run downloads ~80 MB)')
         from sam2.sam2_image_predictor import SAM2ImagePredictor
-        sam = SAM2ImagePredictor.from_pretrained('facebook/sam2.1-hiera-small', device=DEVICE)
+        # tiny model: ~80 MB on disk, ~250 MB resident — half the RAM of small
+        sam = SAM2ImagePredictor.from_pretrained('facebook/sam2.1-hiera-tiny', device=DEVICE)
 
         set_progress('loading regressor')
         import joblib
