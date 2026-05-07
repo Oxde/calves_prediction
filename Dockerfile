@@ -26,4 +26,8 @@ RUN python -c "from sam2.sam2_image_predictor import SAM2ImagePredictor; \
                print('SAM2 weights cached.')"
 
 EXPOSE 8080
-CMD gunicorn app_v3:app --bind 0.0.0.0:${PORT:-8080} --workers 1 --threads 1 --timeout 180 --preload
+# Use shell form so ${PORT} is expanded by sh, not passed literally.
+# No --preload: it would run module-level code (incl. our background warmup thread)
+# in the master before fork — the worker would then start with an unstarted thread
+# and the model state would never load.
+CMD ["sh", "-c", "gunicorn app_v3:app --bind 0.0.0.0:${PORT:-8080} --workers 1 --threads 1 --timeout 180"]
