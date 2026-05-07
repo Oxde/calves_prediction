@@ -1,0 +1,18 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+.DS_Store
+
+# Local model cache (downloaded at build time on Railway)
+.hf_cache/
+.torch_cache/
+
+# Local-only test photos (use the small test_samples/ folder instead)
+_temp_upload.jpg
+
+# Don't bundle the full research dataset into the deploy repo
+test_samples/
+!test_samples/samples.json
+!test_samples/README.md

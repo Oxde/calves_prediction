@@ -1,0 +1,647 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<meta name="theme-color" content="#5c8a52" />
+<title>Calf Weight Estimator</title>
+<style>
+  :root {
+    --bg: #faf6ee;
+    --card: #ffffff;
+    --ink: #2b2418;
+    --muted: #7a6f5f;
+    --accent: #5c8a52;
+    --accent-dark: #3f6938;
+    --warn: #a86a2c;
+    --bad: #b54d3a;
+    --border: #e2dccf;
+    --shadow: 0 4px 20px rgba(80, 60, 30, 0.08);
+    --shadow-lg: 0 10px 40px rgba(80, 60, 30, 0.12);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; min-height: 100vh;
+    background:
+      radial-gradient(circle at 10% 0%, #f3eee2 0, transparent 40%),
+      radial-gradient(circle at 90% 100%, #e7f0e0 0, transparent 40%),
+      var(--bg);
+    color: var(--ink);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    line-height: 1.4;
+  }
+
+  .wrap { max-width: 640px; margin: 0 auto; padding: 20px 18px 40px; }
+  header { text-align: center; padding: 16px 0 24px; }
+  .logo { font-size: 56px; line-height: 1; margin-bottom: 8px; }
+  h1 { font-size: 26px; margin: 0 0 4px; font-weight: 700; letter-spacing: -0.01em; }
+  .subtitle { color: var(--muted); font-size: 15px; margin: 0; }
+  .grid { display: block; }
+
+  @media (min-width: 960px) {
+    .wrap { max-width: 1200px; padding: 32px 32px 60px; }
+    header { padding: 24px 0 36px; }
+    .logo { font-size: 72px; }
+    h1 { font-size: 36px; }
+    .subtitle { font-size: 17px; }
+    .grid {
+      display: grid;
+      grid-template-columns: minmax(360px, 480px) 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+    .grid > .left  { position: sticky; top: 24px; }
+    .empty-state { display: flex; }
+    .result-card { min-height: 60vh; }
+  }
+  @media (min-width: 1280px) {
+    .wrap { max-width: 1320px; }
+    .grid { grid-template-columns: 480px 1fr; gap: 48px; }
+  }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 20px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow);
+  }
+  @media (min-width: 960px) {
+    .card { padding: 28px; border-radius: 22px; box-shadow: var(--shadow-lg); }
+  }
+
+  /* Warmup banner */
+  .warmup {
+    display: none;
+    padding: 14px 16px;
+    background: #fff8e6; border: 1px solid #f0d691;
+    color: #7a5800;
+    border-radius: 12px; font-size: 14px;
+    margin-bottom: 16px;
+  }
+  .warmup.visible { display: flex; align-items: center; gap: 10px; }
+  .warmup .dot {
+    width: 10px; height: 10px;
+    background: #d29922; border-radius: 50%;
+    animation: pulse 1.4s ease-in-out infinite;
+    flex-shrink: 0;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; transform: scale(0.85); }
+    50%      { opacity: 1;   transform: scale(1); }
+  }
+
+  /* Form */
+  .field { margin-bottom: 16px; }
+  .field:last-child { margin-bottom: 0; }
+  label {
+    display: block;
+    font-size: 13px; font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em;
+    margin-bottom: 8px;
+  }
+  input[type="number"] {
+    width: 100%; padding: 14px 16px;
+    border: 1.5px solid var(--border); border-radius: 12px;
+    font-size: 17px; background: var(--bg); color: var(--ink);
+    font-family: inherit; -webkit-appearance: none;
+  }
+  input[type="number"]:focus { outline: none; border-color: var(--accent); background: white; }
+
+  .upload-zone {
+    position: relative;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 32px 20px;
+    border: 2px dashed var(--border); border-radius: 14px;
+    background: var(--bg); cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    text-align: center;
+  }
+  .upload-zone:hover, .upload-zone.dragover {
+    border-color: var(--accent); background: #f3eee2;
+  }
+  .upload-zone input[type="file"] {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    opacity: 0; cursor: pointer;
+  }
+  .upload-icon { font-size: 40px; margin-bottom: 8px; }
+  .upload-text { font-weight: 600; margin-bottom: 4px; }
+  .upload-hint { color: var(--muted); font-size: 13px; }
+  .preview { width: 100%; border-radius: 12px; margin-top: 12px; display: none; }
+  .preview.visible { display: block; }
+
+  button.primary {
+    width: 100%; padding: 16px;
+    background: var(--accent); color: white;
+    border: none; border-radius: 14px;
+    font-size: 17px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+    transition: background 0.15s, transform 0.1s;
+  }
+  button.primary:hover:not(:disabled) { background: var(--accent-dark); }
+  button.primary:active:not(:disabled) { transform: scale(0.98); }
+  button.primary:disabled {
+    background: var(--border); color: var(--muted); cursor: not-allowed;
+  }
+
+  button.secondary {
+    width: 100%; padding: 14px;
+    background: white; color: var(--accent-dark);
+    border: 1.5px solid var(--accent); border-radius: 14px;
+    font-size: 16px; font-weight: 600;
+    cursor: pointer; font-family: inherit;
+    transition: background 0.15s;
+    margin-top: 8px;
+  }
+  button.secondary:hover { background: #e7f0e0; }
+
+  /* Result column */
+  .result-card { display: none; }
+  .result-card.visible { display: block; }
+
+  .empty-state {
+    display: none;
+    flex-direction: column;
+    align-items: center; justify-content: center;
+    text-align: center;
+    padding: 60px 24px;
+    color: var(--muted);
+    background: var(--card);
+    border: 2px dashed var(--border);
+    border-radius: 22px;
+    min-height: 60vh;
+  }
+  .empty-state.hidden { display: none !important; }
+  .empty-state .glyph { font-size: 64px; margin-bottom: 16px; opacity: 0.5; }
+  .empty-state h3 { margin: 0 0 8px; color: var(--ink); font-size: 18px; }
+  .empty-state p { margin: 0; max-width: 320px; font-size: 14px; }
+
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 13px; font-weight: 600;
+    margin-bottom: 12px;
+  }
+  .badge.detected { background: #e7f0e0; color: var(--accent-dark); }
+  .badge.not-detected { background: #f7e6e0; color: var(--bad); }
+
+  .annotated {
+    width: 100%; border-radius: 12px;
+    border: 1px solid var(--border);
+    margin-bottom: 16px; background: #000;
+    max-height: 70vh;
+    object-fit: contain;
+  }
+
+  .weight-display {
+    text-align: center; padding: 24px 0 16px;
+    background: linear-gradient(135deg, #f3eee2 0%, #e7f0e0 100%);
+    border-radius: 14px; margin-bottom: 12px;
+  }
+  .weight-label {
+    font-size: 12px; font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.06em;
+    margin-bottom: 2px;
+  }
+  .weight-num { font-size: 56px; font-weight: 700; color: var(--accent-dark); line-height: 1.05; }
+  .weight-unit { font-size: 24px; font-weight: 500; color: var(--muted); margin-left: 4px; }
+  .weight-range { color: var(--muted); font-size: 14px; margin-top: 6px; }
+  @media (min-width: 960px) {
+    .weight-num { font-size: 72px; }
+    .weight-unit { font-size: 30px; }
+    .weight-display { padding: 32px 0 20px; }
+  }
+
+  .stats {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 8px; margin-bottom: 12px;
+  }
+  .stat {
+    background: var(--bg); padding: 12px;
+    border-radius: 10px; text-align: center;
+    border: 1px solid var(--border);
+  }
+  .stat-label {
+    font-size: 11px; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em; font-weight: 600;
+  }
+  .stat-val { font-size: 18px; font-weight: 700; margin-top: 2px; }
+
+  .footer-note {
+    font-size: 12px; color: var(--muted);
+    margin-top: 12px; line-height: 1.5; text-align: center;
+  }
+
+  .error {
+    display: none; padding: 14px;
+    background: #f7e6e0; color: var(--bad);
+    border-radius: 12px; font-size: 14px; margin-bottom: 16px;
+  }
+  .error.visible { display: block; }
+
+  .spinner {
+    display: inline-block; width: 16px; height: 16px;
+    border: 2px solid rgba(255, 255, 255, 0.4);
+    border-top-color: white;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    vertical-align: -3px; margin-right: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Recent scans history */
+  .history-card { display: none; }
+  .history-card.visible { display: block; }
+  .history-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .history-header h3 {
+    margin: 0; font-size: 14px; font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.04em;
+  }
+  .history-clear {
+    background: none; border: none;
+    color: var(--bad); font-size: 12px; font-weight: 600;
+    cursor: pointer; padding: 4px 8px; border-radius: 6px;
+  }
+  .history-clear:hover { background: #f7e6e0; }
+  .history-list {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: 10px;
+  }
+  .history-item {
+    cursor: pointer;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--bg);
+    transition: border-color 0.15s, transform 0.1s;
+  }
+  .history-item:hover { border-color: var(--accent); }
+  .history-item:active { transform: scale(0.98); }
+  .history-item img {
+    width: 100%; aspect-ratio: 1 / 1;
+    object-fit: cover;
+    display: block;
+  }
+  .history-meta {
+    padding: 6px 8px; font-size: 11px;
+    color: var(--ink); background: white;
+    border-top: 1px solid var(--border);
+    text-align: center;
+  }
+  .history-weight { font-weight: 700; color: var(--accent-dark); }
+  .history-age { color: var(--muted); }
+
+  footer { text-align: center; color: var(--muted); font-size: 12px; padding: 24px 0; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="logo">🐄</div>
+    <h1>Calf Weight Estimator</h1>
+    <p class="subtitle">A photo + the calf's age → estimated weight</p>
+  </header>
+
+  <div class="warmup" id="warmup">
+    <span class="dot"></span>
+    <span id="warmupText">Warming up the model…</span>
+  </div>
+
+  <div class="grid">
+
+    <!-- LEFT: input form -->
+    <div class="left">
+      <form id="form">
+        <div class="card">
+          <div class="field">
+            <label for="photo">Side-view photo</label>
+            <div class="upload-zone" id="uploadZone">
+              <input type="file" id="photo" name="file" accept="image/*" capture="environment" required />
+              <div class="upload-icon">📷</div>
+              <div class="upload-text">Tap to choose or take a photo</div>
+              <div class="upload-hint">JPEG or PNG · side view of the whole calf</div>
+            </div>
+            <img class="preview" id="preview" alt="" />
+          </div>
+
+          <div class="field">
+            <label for="age">Age in days</label>
+            <input type="number" id="age" name="age_days" min="1" max="365" placeholder="e.g. 90" required />
+          </div>
+
+          <button class="primary" type="submit" id="submitBtn" disabled>
+            <span id="btnLabel">Estimate weight</span>
+          </button>
+        </div>
+      </form>
+
+      <div class="error" id="error"></div>
+
+      <!-- History (mobile + desktop) -->
+      <div class="card history-card" id="historyCard">
+        <div class="history-header">
+          <h3>Recent scans</h3>
+          <button class="history-clear" id="clearHistoryBtn" type="button">Clear</button>
+        </div>
+        <div class="history-list" id="historyList"></div>
+      </div>
+    </div>
+
+    <!-- RIGHT: results / empty state -->
+    <div class="right">
+      <div class="empty-state" id="emptyState">
+        <div class="glyph">📊</div>
+        <h3>No prediction yet</h3>
+        <p>Pick a side-view photo of a calf and enter its age in days, then tap <strong>Estimate weight</strong>. The detection and weight estimate will show up here.</p>
+      </div>
+
+      <div class="card result-card" id="result">
+        <div id="badge" class="badge" style="display:none"></div>
+        <img class="annotated" id="annotated" alt="Detection result" />
+
+        <div id="weightWrap" style="display:none">
+          <div class="weight-display">
+            <div class="weight-label">Estimated weight</div>
+            <div><span class="weight-num" id="weight">–</span><span class="weight-unit">kg</span></div>
+            <div class="weight-range" id="range">–</div>
+          </div>
+
+          <div class="stats">
+            <div class="stat">
+              <div class="stat-label">YOLO conf.</div>
+              <div class="stat-val" id="yoloConf">–</div>
+            </div>
+            <div class="stat">
+              <div class="stat-label">SAM2 conf.</div>
+              <div class="stat-val" id="samConf">–</div>
+            </div>
+          </div>
+
+          <button class="secondary" type="button" id="scanAgainBtn">📷 Scan new cow</button>
+
+          <p class="footer-note">
+            Model: SAM2 + age → Gradient Boosting. Cross-validated MAPE 8.4 % on 203 measurements
+            (Holstein Friesian, 30 calves). Range shown is ± typical error.
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>v3 · age + photo only · client-compliant</footer>
+
+</div>
+
+<script>
+const photoInput = document.getElementById('photo');
+const preview    = document.getElementById('preview');
+const ageInput   = document.getElementById('age');
+const submitBtn  = document.getElementById('submitBtn');
+const btnLabel   = document.getElementById('btnLabel');
+const form       = document.getElementById('form');
+const errorBox   = document.getElementById('error');
+const resultCard = document.getElementById('result');
+const annotated  = document.getElementById('annotated');
+const weightWrap = document.getElementById('weightWrap');
+const weightEl   = document.getElementById('weight');
+const rangeEl    = document.getElementById('range');
+const yoloEl     = document.getElementById('yoloConf');
+const samEl      = document.getElementById('samConf');
+const badge      = document.getElementById('badge');
+const uploadZone = document.getElementById('uploadZone');
+const emptyState = document.getElementById('emptyState');
+const warmup     = document.getElementById('warmup');
+const warmupText = document.getElementById('warmupText');
+const scanAgainBtn = document.getElementById('scanAgainBtn');
+const historyCard = document.getElementById('historyCard');
+const historyList = document.getElementById('historyList');
+const clearHistoryBtn = document.getElementById('clearHistoryBtn');
+
+const HISTORY_KEY = 'calfScans_v1';
+const HISTORY_MAX = 12;
+let modelsReady = false;
+
+/* ---------- Warmup polling ---------- */
+async function pollReady() {
+  try {
+    const res = await fetch('/ready');
+    const data = await res.json();
+    if (data.error) {
+      warmup.classList.add('visible');
+      warmupText.textContent = 'Model failed to load: ' + data.error;
+      return;
+    }
+    if (data.ready) {
+      modelsReady = true;
+      warmup.classList.remove('visible');
+      validate();
+      return;
+    }
+    warmup.classList.add('visible');
+    warmupText.textContent = `Warming up the model… (${data.progress}, ${data.elapsed_s}s)`;
+  } catch (e) {
+    warmup.classList.add('visible');
+    warmupText.textContent = 'Cannot reach the server.';
+  }
+  setTimeout(pollReady, 2000);
+}
+pollReady();
+
+/* ---------- Form validation ---------- */
+function validate() {
+  submitBtn.disabled = !(modelsReady && photoInput.files.length && ageInput.value);
+}
+
+photoInput.addEventListener('change', () => {
+  validate();
+  const file = photoInput.files[0];
+  if (!file) return;
+  preview.src = URL.createObjectURL(file);
+  preview.classList.add('visible');
+  uploadZone.style.display = 'none';
+});
+
+ageInput.addEventListener('input', validate);
+
+['dragenter', 'dragover'].forEach(evt =>
+  uploadZone.addEventListener(evt, e => { e.preventDefault(); uploadZone.classList.add('dragover'); }));
+['dragleave', 'drop'].forEach(evt =>
+  uploadZone.addEventListener(evt, e => { e.preventDefault(); uploadZone.classList.remove('dragover'); }));
+uploadZone.addEventListener('drop', e => {
+  if (e.dataTransfer.files.length) {
+    photoInput.files = e.dataTransfer.files;
+    photoInput.dispatchEvent(new Event('change'));
+  }
+});
+
+/* ---------- Result rendering ---------- */
+function setBadge(kind, text) {
+  badge.className = 'badge ' + kind;
+  badge.textContent = text;
+  badge.style.display = 'inline-flex';
+}
+
+function renderResult(data, age) {
+  badge.style.display = 'none';
+  if (data.detected) {
+    setBadge('detected', '✓ Calf detected');
+    weightWrap.style.display = 'block';
+    weightEl.textContent = data.predicted_kg;
+    rangeEl.textContent = `typical range ${data.lower_kg} – ${data.upper_kg} kg`;
+    yoloEl.textContent = `${Math.round(data.yolo_conf * 100)}%`;
+    samEl.textContent  = `${Math.round(data.sam2_conf * 100)}%`;
+    saveScan({
+      timestamp: Date.now(),
+      thumb: data.annotated_image,
+      kg: data.predicted_kg,
+      age_days: age,
+      yolo: data.yolo_conf,
+      sam: data.sam2_conf,
+      lower: data.lower_kg,
+      upper: data.upper_kg,
+    });
+  } else {
+    setBadge('not-detected', '✗ ' + (data.message || 'No calf detected'));
+    weightWrap.style.display = 'none';
+  }
+  annotated.src = data.annotated_image;
+  emptyState.classList.add('hidden');
+  resultCard.classList.add('visible');
+  if (window.matchMedia('(max-width: 959px)').matches) {
+    resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
+/* ---------- Reset form for next scan ---------- */
+function resetForm() {
+  form.reset();
+  preview.classList.remove('visible');
+  preview.removeAttribute('src');
+  uploadZone.style.display = 'flex';
+  resultCard.classList.remove('visible');
+  if (window.matchMedia('(min-width: 960px)').matches) {
+    emptyState.classList.remove('hidden');
+  }
+  validate();
+  if (window.matchMedia('(max-width: 959px)').matches) {
+    form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+scanAgainBtn.addEventListener('click', resetForm);
+
+/* ---------- Local-storage history ---------- */
+function loadHistory() {
+  try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
+  catch { return []; }
+}
+function persistHistory(list) {
+  try { localStorage.setItem(HISTORY_KEY, JSON.stringify(list)); }
+  catch (e) { console.warn('localStorage full', e); }
+}
+function saveScan(entry) {
+  const list = [entry, ...loadHistory()].slice(0, HISTORY_MAX);
+  persistHistory(list);
+  renderHistory();
+}
+function clearHistory() {
+  localStorage.removeItem(HISTORY_KEY);
+  renderHistory();
+}
+clearHistoryBtn.addEventListener('click', () => {
+  if (confirm('Clear all scanned cows from this device?')) clearHistory();
+});
+
+function renderHistory() {
+  const list = loadHistory();
+  if (list.length === 0) {
+    historyCard.classList.remove('visible');
+    return;
+  }
+  historyCard.classList.add('visible');
+  historyList.textContent = '';
+  list.forEach((entry, idx) => {
+    const item = document.createElement('div');
+    item.className = 'history-item';
+    item.title = `${entry.kg} kg · age ${entry.age_days} d`;
+    const img = document.createElement('img');
+    img.src = entry.thumb;
+    img.alt = `${entry.kg} kg`;
+    const meta = document.createElement('div');
+    meta.className = 'history-meta';
+    const w = document.createElement('div'); w.className = 'history-weight'; w.textContent = `${entry.kg} kg`;
+    const a = document.createElement('div'); a.className = 'history-age';    a.textContent = `${entry.age_days} d`;
+    meta.appendChild(w); meta.appendChild(a);
+    item.appendChild(img); item.appendChild(meta);
+    item.addEventListener('click', () => replayHistory(entry));
+    historyList.appendChild(item);
+  });
+}
+function replayHistory(entry) {
+  badge.style.display = 'none';
+  setBadge('detected', '✓ Scanned ' + new Date(entry.timestamp).toLocaleString());
+  annotated.src = entry.thumb;
+  weightWrap.style.display = 'block';
+  weightEl.textContent = entry.kg;
+  rangeEl.textContent = `typical range ${entry.lower} – ${entry.upper} kg`;
+  yoloEl.textContent = `${Math.round(entry.yolo * 100)}%`;
+  samEl.textContent  = `${Math.round(entry.sam * 100)}%`;
+  emptyState.classList.add('hidden');
+  resultCard.classList.add('visible');
+  if (window.matchMedia('(max-width: 959px)').matches) {
+    resultCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+renderHistory();
+
+/* ---------- Submit ---------- */
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  errorBox.classList.remove('visible');
+  resultCard.classList.remove('visible');
+
+  submitBtn.disabled = true;
+  btnLabel.textContent = '';
+  const sp = document.createElement('span'); sp.className = 'spinner';
+  btnLabel.appendChild(sp);
+  btnLabel.appendChild(document.createTextNode('Analyzing...'));
+
+  const ageVal = parseInt(ageInput.value, 10);
+  const formData = new FormData();
+  formData.append('file', photoInput.files[0]);
+  formData.append('age_days', ageVal);
+
+  try {
+    const res = await fetch('/predict', { method: 'POST', body: formData });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      errorBox.textContent = data.error || `Server error (${res.status})`;
+      errorBox.classList.add('visible');
+      return;
+    }
+    renderResult(data, ageVal);
+  } catch (err) {
+    errorBox.textContent = 'Could not reach the server. Is it running?';
+    errorBox.classList.add('visible');
+  } finally {
+    submitBtn.disabled = false;
+    btnLabel.textContent = 'Estimate weight';
+    validate();
+  }
+});
+</script>
+</body>
+</html>

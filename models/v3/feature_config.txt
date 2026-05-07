@@ -1,0 +1,7 @@
+crop_mode: squish
+config: SAM2 + Age
+model: GBR
+dim: 49
+mae_kg: 10.470
+mape_pct: 8.405
+r2: 0.933
