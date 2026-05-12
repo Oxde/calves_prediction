@@ -504,16 +504,16 @@ function renderResult(data, age) {
     rangeEl.textContent = `typical range ${data.lower_kg} – ${data.upper_kg} kg`;
     yoloEl.textContent = `${Math.round(data.yolo_conf * 100)}%`;
     samEl.textContent  = `${Math.round(data.sam2_conf * 100)}%`;
-    saveScan({
+    makeThumb(data.annotated_image).then(thumb => saveScan({
       timestamp: Date.now(),
-      thumb: data.annotated_image,
+      thumb,
       kg: data.predicted_kg,
       age_days: age,
       yolo: data.yolo_conf,
       sam: data.sam2_conf,
       lower: data.lower_kg,
       upper: data.upper_kg,
-    });
+    }));
   } else {
     setBadge('not-detected', '✗ ' + (data.message || 'No calf detected'));
     weightWrap.style.display = 'none';
@@ -544,6 +544,25 @@ function resetForm() {
 scanAgainBtn.addEventListener('click', resetForm);
 
 /* ---------- Local-storage history ---------- */
+// Server returns a full-res annotated JPEG data URL (often 0.5–2 MB). localStorage
+// is ~5 MB per origin, so storing more than 1–2 raw scans throws QuotaExceededError
+// and only the first scan persists. Downscale to a small thumb before saving.
+function makeThumb(dataUrl, maxW = 240) {
+  return new Promise(resolve => {
+    const im = new Image();
+    im.onload = () => {
+      const scale = Math.min(1, maxW / im.width);
+      const w = Math.round(im.width * scale);
+      const h = Math.round(im.height * scale);
+      const c = document.createElement('canvas');
+      c.width = w; c.height = h;
+      c.getContext('2d').drawImage(im, 0, 0, w, h);
+      resolve(c.toDataURL('image/jpeg', 0.7));
+    };
+    im.onerror = () => resolve(dataUrl);
+    im.src = dataUrl;
+  });
+}
 function loadHistory() {
   try { return JSON.parse(localStorage.getItem(HISTORY_KEY)) || []; }
   catch { return []; }

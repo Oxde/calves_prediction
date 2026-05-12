@@ -8,15 +8,16 @@ ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
 
 WORKDIR /app
 
-# Minimal system deps for opencv-python-headless + scikit-image + SAM2 install:
+# System deps:
 #   git           — required to pip-install SAM2 from GitHub
-#   libglib2.0-0  — opencv-python-headless imports it
-#   libxcb1       — opencv-python-headless dlopens it on import (~70 KB, tiny)
+#   libglib2.0-0  — opencv imports it
+#   libxcb1       — opencv dlopens it on import
 #   libgomp1      — OpenMP runtime, used by sklearn / scikit-image
-# We deliberately do NOT install libgl1 / libsm6 / libxext6 / libxrender1 —
-# they pull in libllvm19 (~26 MB) and mesa, and the headless build doesn't need them.
+#   libgl1        — ultralytics transitively installs non-headless opencv-python,
+#                   which dlopens libGL.so.1 at import time. Without this the app
+#                   fails warmup with "ImportError: libGL.so.1: cannot open shared object file".
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        git libglib2.0-0 libxcb1 libgomp1 \
+        git libglib2.0-0 libxcb1 libgomp1 libgl1 \
     && rm -rf /var/lib/apt/lists/*
 
 # Python deps first (cache layer)
